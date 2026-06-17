@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     env: str = Field(default="development", alias="ENV")
     telegram_bot_token: Optional[str] = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
     admin_telegram_id: Optional[int] = Field(default=None, alias="ADMIN_TELEGRAM_ID")
+    whatsapp_verify_token: Optional[str] = Field(default=None, alias="WHATSAPP_VERIFY_TOKEN")
+    whatsapp_access_token: Optional[str] = Field(default=None, alias="WHATSAPP_ACCESS_TOKEN")
+    whatsapp_phone_number_id: Optional[str] = Field(default=None, alias="WHATSAPP_PHONE_NUMBER_ID")
+    admin_whatsapp_phone: Optional[str] = Field(default=None, alias="ADMIN_WHATSAPP_PHONE")
     timezone: str = Field(default="America/Argentina/Buenos_Aires", alias="TIMEZONE")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -37,4 +41,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

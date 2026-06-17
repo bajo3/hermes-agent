@@ -151,6 +151,40 @@ En Railway se recomienda correrlo como Cron Job a las 9:00 AM de Argentina con:
 
 Railway usa UTC y Argentina es UTC-3.
 
+## Webhook WhatsApp Cloud API en Vercel
+
+Hermes incluye un webhook oficial para Meta WhatsApp Cloud API:
+
+```text
+GET /webhooks/whatsapp
+POST /webhooks/whatsapp
+```
+
+Variables necesarias en Vercel:
+
+```bash
+WHATSAPP_VERIFY_TOKEN=un_texto_secreto_elegido_por_vos
+WHATSAPP_ACCESS_TOKEN=token_de_meta
+WHATSAPP_PHONE_NUMBER_ID=id_del_numero_de_meta
+ADMIN_WHATSAPP_PHONE=549XXXXXXXXXX
+DATABASE_URL=postgresql://...
+SECRET_KEY=...
+ENV=production
+TIMEZONE=America/Argentina/Buenos_Aires
+```
+
+URL para configurar en Meta:
+
+```text
+https://TU-DOMINIO-VERCEL.vercel.app/webhooks/whatsapp
+```
+
+Comandos soportados por WhatsApp en esta primera version:
+
+- `resumen`
+- `pendientes`
+- `clientes`
+
 ## Seed de ejemplo
 
 ```bash
@@ -257,4 +291,3 @@ alembic upgrade head
 - Agregar tests automatizados.
 - Agregar vistas HTML para crear y editar datos sin Swagger.
 - Agregar webhooks de Telegram si se prefiere evitar polling.
-
