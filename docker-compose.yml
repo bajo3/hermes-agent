@@ -37,6 +37,15 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
       AI_ENABLED: ${AI_ENABLED:-true}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      HERMES_CLI_PATH: ${HERMES_CLI_PATH:-/home/bajo31/.local/bin/hermes}
+      HERMES_CLI_COMMAND: ${HERMES_CLI_COMMAND:-}
+      HERMES_CLI_PROVIDER: ${HERMES_CLI_PROVIDER:-openai-codex}
+      HERMES_CLI_MODEL: ${HERMES_CLI_MODEL:-gpt-5.5}
+      HERMES_CLI_TIMEOUT: ${HERMES_CLI_TIMEOUT:-120}
+      HERMES_CLI_CWD: ${HERMES_CLI_CWD:-/home/bajo31/.hermes/hermes-agent}
+      HERMES_CLI_BRIDGE_URL: ${HERMES_CLI_BRIDGE_URL:-http://host.docker.internal:8766/interpret}
+      HERMES_CLI_BRIDGE_TOKEN: ${HERMES_CLI_BRIDGE_TOKEN:-}
       PORT: 8000
     ports:
       - "8000:8000"

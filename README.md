@@ -68,6 +68,13 @@ DEFAULT_EXPORTS_FOLDER=C:\Hermes\Exports
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5.4-mini
 AI_ENABLED=true
+AI_PROVIDER=openai
+
+HERMES_CLI_PROVIDER=openai-codex
+HERMES_CLI_MODEL=gpt-5.5
+HERMES_CLI_TIMEOUT=120
+HERMES_CLI_BRIDGE_URL=http://host.docker.internal:8766/interpret
+HERMES_CLI_BRIDGE_TOKEN=
 ```
 
 `ADMIN_WHATSAPP_NUMBER` debe ir con codigo de pais y sin `+`, espacios ni guiones.
@@ -149,7 +156,30 @@ confirmar ...
 rechazar ...
 ```
 
-Si `OPENAI_API_KEY` esta configurada, Hermes tambien interpreta mensajes naturales. Los comandos exactos siguen funcionando como fallback.
+Si `AI_ENABLED=true`, Hermes tambien interpreta mensajes naturales. Los comandos exactos siempre se procesan primero.
+
+Hay dos proveedores soportados:
+
+- `AI_PROVIDER=openai`: usa `OPENAI_API_KEY`.
+- `AI_PROVIDER=hermes_http`: usa el Hermes de WSL con tu OAuth de `openai-codex`.
+
+Para usar Codex OAuth local desde Docker, primero levanta el puente en WSL:
+
+```bash
+cd /mnt/c/Users/felip/Desktop/Feli\ Web/hermes\ agent/hermes-secretario
+export HERMES_AI_BRIDGE_TOKEN=hermes_codex_local
+python3 wsl_hermes_bridge/hermes_ai_bridge.py
+```
+
+Luego en `.env`:
+
+```text
+AI_PROVIDER=hermes_http
+HERMES_CLI_PROVIDER=openai-codex
+HERMES_CLI_MODEL=gpt-5.5
+HERMES_CLI_BRIDGE_URL=http://host.docker.internal:8766/interpret
+HERMES_CLI_BRIDGE_TOKEN=hermes_codex_local
+```
 
 Ejemplos:
 
