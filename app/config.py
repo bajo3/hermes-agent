@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     default_clients_folder: str = Field(default=r"C:\Hermes\Clientes", alias="DEFAULT_CLIENTS_FOLDER")
     default_backup_folder: str = Field(default=r"C:\Hermes\Backups", alias="DEFAULT_BACKUP_FOLDER")
     default_exports_folder: str = Field(default=r"C:\Hermes\Exports", alias="DEFAULT_EXPORTS_FOLDER")
+    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
+    openai_model: str = Field(default="gpt-5.4-mini", alias="OPENAI_MODEL")
+    ai_enabled: bool = Field(default=True, alias="AI_ENABLED")
     timezone: str = Field(default="America/Argentina/Buenos_Aires", alias="TIMEZONE")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

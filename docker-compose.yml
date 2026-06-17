@@ -34,6 +34,9 @@ services:
       DEFAULT_CLIENTS_FOLDER: ${DEFAULT_CLIENTS_FOLDER:-C:\Hermes\Clientes}
       DEFAULT_BACKUP_FOLDER: ${DEFAULT_BACKUP_FOLDER:-C:\Hermes\Backups}
       DEFAULT_EXPORTS_FOLDER: ${DEFAULT_EXPORTS_FOLDER:-C:\Hermes\Exports}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
+      AI_ENABLED: ${AI_ENABLED:-true}
       PORT: 8000
     ports:
       - "8000:8000"

@@ -279,7 +279,7 @@ def folder_command(text: str, action: str) -> str:
     return create_client_folder(client_name)
 
 
-def process_message(db: Session, text: str) -> str:
+def process_known_command(db: Session, text: str) -> str | None:
     clean = normalize_text(text).lstrip("/")
     if clean in {"hola", "ayuda", "start"}:
         return help_text()
@@ -309,5 +309,17 @@ def process_message(db: Session, text: str) -> str:
         return "Confirmado. En esta version queda registrado como respuesta manual."
     if clean.startswith("rechazar "):
         return "Rechazado. En esta version queda registrado como respuesta manual."
-    return "Comando no reconocido. Escribi ayuda para ver opciones."
+    return None
 
+
+def process_message(db: Session, text: str) -> str:
+    known_reply = process_known_command(db, text)
+    if known_reply is not None:
+        return known_reply
+
+    from app.ai_assistant import interpret_with_ai
+
+    ai_reply = interpret_with_ai(db, text, lambda command: process_known_command(db, command) or help_text())
+    if ai_reply:
+        return ai_reply
+    return "Comando no reconocido. Escribi ayuda para ver opciones."

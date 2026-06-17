@@ -64,6 +64,10 @@ APP_PORT=8000
 DEFAULT_CLIENTS_FOLDER=C:\Hermes\Clientes
 DEFAULT_BACKUP_FOLDER=C:\Hermes\Backups
 DEFAULT_EXPORTS_FOLDER=C:\Hermes\Exports
+
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.4-mini
+AI_ENABLED=true
 ```
 
 `ADMIN_WHATSAPP_NUMBER` debe ir con codigo de pais y sin `+`, espacios ni guiones.
@@ -143,6 +147,16 @@ crear carpeta VAXA
 nota VAXA revisar textos de la web
 confirmar ...
 rechazar ...
+```
+
+Si `OPENAI_API_KEY` esta configurada, Hermes tambien interpreta mensajes naturales. Los comandos exactos siguen funcionando como fallback.
+
+Ejemplos:
+
+```text
+manana recordame revisar la web de VAXA con prioridad alta
+cargame un cobro de 120000 a VAXA para el viernes por web
+anotame en Romero que falta revisar textos
 ```
 
 ## Seguridad
