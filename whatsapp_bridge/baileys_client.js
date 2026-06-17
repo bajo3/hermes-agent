@@ -127,6 +127,10 @@ async function startBaileys() {
 
       if (!isAdminMessage(message)) {
         appendLog({ direction: 'incoming', fromNumber, messageId: message.key.id, status: 'unauthorized' });
+        console.log(
+          `Mensaje ignorado: numero no autorizado ${fromNumber}. ` +
+          `Si este es tu WhatsApp, configura ADMIN_WHATSAPP_NUMBER=${fromNumber}`
+        );
         if (config.rejectUnauthorized) {
           await sock.sendMessage(message.key.remoteJid, { text: 'No autorizado.' });
         }
@@ -156,4 +160,3 @@ async function startBaileys() {
 }
 
 module.exports = { startBaileys };
-
