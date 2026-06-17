@@ -1,5 +1,5 @@
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: hermes
@@ -15,23 +15,62 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
+  api:
     build: .
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hermes
-      SECRET_KEY: change_me
-      ENV: development
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:-}
-      TIMEZONE: America/Argentina/Buenos_Aires
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/hermes}
+      SECRET_KEY: ${SECRET_KEY:-change_me}
+      ENV: ${ENV:-development}
+      TIMEZONE: ${TIMEZONE:-America/Argentina/Buenos_Aires}
+      ADMIN_WHATSAPP_NUMBER: ${ADMIN_WHATSAPP_NUMBER:-}
+      WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:-change_me_bridge_token}
+      BRIDGE_URL: ${BRIDGE_URL:-http://host.docker.internal:8765}
+      BRIDGE_TOKEN: ${BRIDGE_TOKEN:-change_me_windows_bridge_token}
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8000}
+      DEFAULT_CLIENTS_FOLDER: ${DEFAULT_CLIENTS_FOLDER:-C:\Hermes\Clientes}
+      DEFAULT_BACKUP_FOLDER: ${DEFAULT_BACKUP_FOLDER:-C:\Hermes\Backups}
+      DEFAULT_EXPORTS_FOLDER: ${DEFAULT_EXPORTS_FOLDER:-C:\Hermes\Exports}
       PORT: 8000
     ports:
       - "8000:8000"
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build: .
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/hermes}
+      SECRET_KEY: ${SECRET_KEY:-change_me}
+      ENV: ${ENV:-development}
+      TIMEZONE: ${TIMEZONE:-America/Argentina/Buenos_Aires}
+    command: python -m app.worker
+
+  whatsapp_bridge:
+    build: ./whatsapp_bridge
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      HERMES_API_URL: ${HERMES_API_URL:-http://api:8000}
+      ADMIN_WHATSAPP_NUMBER: ${ADMIN_WHATSAPP_NUMBER:-}
+      WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:-change_me_bridge_token}
+      WHATSAPP_AUTH_DIR: /app/auth
+      WHATSAPP_LOG_FILE: /app/logs/messages.log
+    volumes:
+      - ./whatsapp_bridge/auth:/app/auth
+      - ./whatsapp_bridge/logs:/app/logs
+    command: npm start
 
 volumes:
   postgres_data:
-

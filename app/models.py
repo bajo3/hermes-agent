@@ -109,3 +109,13 @@ class Reminder(Base, TimestampMixin):
     related_type: Mapped[Optional[str]] = mapped_column(String(80))
     related_id: Mapped[Optional[int]] = mapped_column(index=True)
 
+
+class WhatsAppMessage(Base, TimestampMixin):
+    __tablename__ = "whatsapp_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    direction: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    from_number: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    message_id: Mapped[Optional[str]] = mapped_column(String(120), index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="processed", index=True)

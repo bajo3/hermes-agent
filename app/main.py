@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.config import get_settings
 from app.database import get_db
-from app.whatsapp import router as whatsapp_router
+from app.whatsapp_internal import router as whatsapp_internal_router
 from app.routers import clients, finances, meetings, projects, reminders, tasks
 
 
@@ -20,7 +20,7 @@ app.include_router(tasks.router)
 app.include_router(meetings.router)
 app.include_router(finances.router)
 app.include_router(reminders.router)
-app.include_router(whatsapp_router)
+app.include_router(whatsapp_internal_router)
 
 
 @app.get("/health")

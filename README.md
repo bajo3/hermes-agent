@@ -1,90 +1,168 @@
 # Hermes Secretario
 
-Hermes Secretario es un agente personal tipo secretario para administrar clientes, proyectos, tareas, reuniones, finanzas basicas, cobros, gastos, recordatorios y resumenes diarios. Esta V1 esta pensada para correr en Railway Hobby con Docker, PostgreSQL y un bot de Telegram.
+Hermes Secretario es un agente personal para administrar clientes, proyectos, tareas, reuniones, cobros, gastos, recordatorios y resumenes diarios.
 
-No usa WhatsApp Web, OCR, vision por computadora ni navegador headless.
+La integracion de WhatsApp de esta version usa **Baileys** en un servicio Node.js local con QR y sesion persistente.
+
+## Arquitectura
+
+```text
+WhatsApp -> Baileys Bridge -> FastAPI Hermes -> PostgreSQL
+                              |
+                              -> Windows Bridge -> PC Windows
+```
+
+Servicios principales:
+
+- `api`: FastAPI con SQLAlchemy, Alembic y dashboard.
+- `db`: PostgreSQL.
+- `worker`: recordatorios, cobros vencidos y tareas programadas.
+- `whatsapp_bridge`: Node.js + Baileys, login por QR y sesion persistente.
+- `windows_bridge`: reservado para acciones locales de Windows.
 
 ## Stack
 
 - Python 3.11
 - FastAPI
 - PostgreSQL
-- SQLAlchemy 2
+- SQLAlchemy
 - Alembic
-- Pydantic v2
+- Pydantic
 - Uvicorn
-- python-telegram-bot
 - APScheduler
-- Docker y Docker Compose
-
-## Decisiones tecnicas
-
-- La API usa SQLAlchemy sincronico para mantener el deploy simple y estable.
-- La base de datos principal es PostgreSQL. `DATABASE_URL` acepta tambien URLs `postgres://` y las normaliza a `postgresql://`.
-- El proceso API solo sirve FastAPI. El proceso Worker ejecuta polling de Telegram y tareas periodicas.
-- El Worker revisa recordatorios, marca cobros vencidos y envia avisos por Telegram.
-- El resumen diario esta separado en `python -m app.daily_summary` para correrlo como Cron Job en Railway.
-- El bot solo responde si `effective_user.id` coincide con `ADMIN_TELEGRAM_ID`.
-- El parsing de comandos de Telegram es simple por diseno. Hay espacio para agregar IA/NLP en una version posterior.
-- No se hardcodean tokens ni secretos. Todo se configura por variables de entorno.
-
-## Funciones
-
-- CRUD completo de clientes.
-- CRUD completo de proyectos/trabajos.
-- CRUD completo de tareas, con accion para completar.
-- CRUD completo de reuniones.
-- CRUD de finanzas, resumen, pendientes y marcar como pagado.
-- CRUD de recordatorios.
-- Dashboard HTML basico en `/`.
-- Comandos de Telegram: `/start`, `/resumen`, `/tarea`, `/cobro`, `/gasto`, `/reunion`, `/pendientes`, `/clientes`.
-- Worker para recordatorios y cobros vencidos.
-- Resumen diario para Telegram.
-- Script de seed con clientes y datos de ejemplo.
+- Node.js 20
+- Baileys
+- Docker Compose
 
 ## Variables de entorno
 
-Copiar `.env.example` a `.env` y completar:
+Copiar `.env.example` a `.env`:
 
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/hermes
-SECRET_KEY=change_me
-ENV=development
-TELEGRAM_BOT_TOKEN=
-ADMIN_TELEGRAM_ID=
-TIMEZONE=America/Argentina/Buenos_Aires
-```
-
-`SECRET_KEY` queda preparada para futuras funciones de seguridad. Cambiala en produccion.
-
-## Instalacion local sin Docker
-
-Requisitos: Python 3.11 y PostgreSQL corriendo.
-
-```bash
-cd hermes-secretario
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Crear la base `hermes` en PostgreSQL y luego correr migraciones:
+Variables principales:
 
-```bash
-alembic upgrade head
+```env
+DATABASE_URL=postgresql://postgres:postgres@db:5432/hermes
+SECRET_KEY=change_me
+ENV=development
+TIMEZONE=America/Argentina/Buenos_Aires
+
+ADMIN_WHATSAPP_NUMBER=549XXXXXXXXXX
+
+HERMES_API_URL=http://api:8000
+WHATSAPP_BRIDGE_TOKEN=change_me_bridge_token
+
+BRIDGE_URL=http://host.docker.internal:8765
+BRIDGE_TOKEN=change_me_windows_bridge_token
+
+APP_HOST=0.0.0.0
+APP_PORT=8000
+
+DEFAULT_CLIENTS_FOLDER=C:\Hermes\Clientes
+DEFAULT_BACKUP_FOLDER=C:\Hermes\Backups
+DEFAULT_EXPORTS_FOLDER=C:\Hermes\Exports
 ```
 
-Comandos utiles de Alembic:
+`ADMIN_WHATSAPP_NUMBER` debe ir con codigo de pais y sin `+`, espacios ni guiones.
+
+## Correr con Docker Compose
 
 ```bash
-alembic revision --autogenerate -m "initial tables"
-alembic upgrade head
+docker compose up --build
 ```
 
-## Correr API
+En el primer inicio, `whatsapp_bridge` muestra un QR en consola. Escanealo con WhatsApp desde Dispositivos vinculados.
+
+La sesion queda guardada en:
+
+```text
+whatsapp_bridge/auth
+```
+
+No subas esa carpeta a GitHub. Ya esta protegida por `.gitignore`.
+
+## Reiniciar sesion de WhatsApp
+
+Si se desloguea o queres vincular otro telefono:
+
+1. Parar `whatsapp_bridge`.
+2. Borrar el contenido de `whatsapp_bridge/auth`, dejando `.gitkeep`.
+3. Ejecutar `docker compose up --build`.
+4. Escanear el nuevo QR.
+
+## Endpoint interno de WhatsApp
+
+Baileys llama a FastAPI por red interna:
+
+```text
+POST /internal/whatsapp/message
+```
+
+Header:
+
+```text
+X-Whatsapp-Bridge-Token: WHATSAPP_BRIDGE_TOKEN
+```
+
+Body:
+
+```json
+{
+  "from_number": "549...",
+  "text": "resumen",
+  "message_id": "...",
+  "timestamp": "..."
+}
+```
+
+FastAPI valida token, valida `ADMIN_WHATSAPP_NUMBER`, loguea entrada y salida, procesa el comando y devuelve:
+
+```json
+{
+  "reply": "texto de respuesta"
+}
+```
+
+## Comandos WhatsApp
+
+```text
+ayuda
+resumen
+pendientes
+clientes
+proyectos
+tarea hacer post de Romero para manana prioridad alta
+cobro VAXA 120000 viernes web
+gasto Railway 5000 software
+reunion VAXA viernes 17 revisar web
+abrir carpeta VAXA
+crear carpeta VAXA
+nota VAXA revisar textos de la web
+confirmar ...
+rechazar ...
+```
+
+## Seguridad
+
+- El bridge ignora grupos.
+- Solo responde al numero de `ADMIN_WHATSAPP_NUMBER`.
+- Puede ignorar desconocidos sin responder.
+- Usa `WHATSAPP_BRIDGE_TOKEN` para hablar con FastAPI.
+- Guarda logs en base de datos y en `whatsapp_bridge/logs/messages.log`.
+- `.env`, `whatsapp_bridge/auth` y logs locales estan ignorados por Git.
+
+## Correr API sin Docker
+
+Requisitos: Python 3.11 y PostgreSQL.
 
 ```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -94,209 +172,77 @@ Abrir:
 - Health: http://localhost:8000/health
 - Swagger: http://localhost:8000/docs
 
-## Correr con Docker Compose
+## Correr Baileys sin Docker
 
 ```bash
-cd hermes-secretario
-docker compose up --build
-```
-
-El servicio `app` espera a PostgreSQL, ejecuta `alembic upgrade head` y levanta la API en http://localhost:8000.
-
-## Worker y bot
-
-El worker mantiene el polling de Telegram y corre tareas periodicas.
-
-```bash
-python -m app.worker
-```
-
-Tambien se puede correr solo el bot:
-
-```bash
-python -m app.telegram_bot
-```
-
-Para usar Telegram:
-
-1. Crear un bot con BotFather.
-2. Guardar el token en `TELEGRAM_BOT_TOKEN`.
-3. Obtener tu ID con User Info Bot.
-4. Guardar ese numero en `ADMIN_TELEGRAM_ID`.
-
-Comandos:
-
-```text
-/start
-/resumen
-/tarea hacer post de Romero para manana prioridad alta
-/cobro VAXA 120000 viernes web
-/gasto Railway 5000 software
-/reunion VAXA viernes 17 revisar web
-/pendientes
-/clientes
-```
-
-## Resumen diario
-
-```bash
-python -m app.daily_summary
-```
-
-En Railway se recomienda correrlo como Cron Job a las 9:00 AM de Argentina con:
-
-```text
-0 12 * * *
-```
-
-Railway usa UTC y Argentina es UTC-3.
-
-## Webhook WhatsApp Cloud API en Vercel
-
-Hermes incluye un webhook oficial para Meta WhatsApp Cloud API:
-
-```text
-GET /webhooks/whatsapp
-POST /webhooks/whatsapp
-```
-
-Variables necesarias en Vercel:
-
-```bash
-WHATSAPP_VERIFY_TOKEN=un_texto_secreto_elegido_por_vos
-WHATSAPP_ACCESS_TOKEN=token_de_meta
-WHATSAPP_PHONE_NUMBER_ID=id_del_numero_de_meta
-ADMIN_WHATSAPP_PHONE=549XXXXXXXXXX
-DATABASE_URL=postgresql://...
-SECRET_KEY=...
-ENV=production
-TIMEZONE=America/Argentina/Buenos_Aires
-```
-
-URL para configurar en Meta:
-
-```text
-https://TU-DOMINIO-VERCEL.vercel.app/webhooks/whatsapp
-```
-
-Comandos soportados por WhatsApp en esta primera version:
-
-- `resumen`
-- `pendientes`
-- `clientes`
-
-## Prueba local con WhatsApp QR/OpenWA
-
-Para probar rapido con QR sin Meta, el repo incluye un puente local en `whatsapp-openwa-bridge/`.
-
-```bash
-cd whatsapp-openwa-bridge
-copy .env.example .env
+cd whatsapp_bridge
 npm install
 npm start
 ```
 
-Antes de correrlo, levantar Hermes en local:
+Si Hermes corre local sin Docker:
 
-```bash
-docker compose up --build
+```env
+HERMES_API_URL=http://localhost:8000
 ```
 
-El puente usa `@open-wa/wa-automate@4.76.0`, recibe mensajes de WhatsApp Web y llama a la API REST de Hermes. Es solo para pruebas/local; para produccion conviene usar WhatsApp Cloud API oficial de Meta.
+## Migraciones
 
-## Seed de ejemplo
+```bash
+alembic revision --autogenerate -m "message"
+alembic upgrade head
+```
+
+## Seed
 
 ```bash
 python -m app.seed
 ```
 
-Crea clientes de ejemplo:
+Crea datos de ejemplo para:
 
 - VAXA Fumigaciones
 - Romero Impermeabilizaciones
 - JD Automotores
 - Autos Tandil
 
-Tambien crea proyectos, tareas y cobros de ejemplo.
-
-## Endpoints principales
-
-Health:
+## Endpoints REST principales
 
 - `GET /health`
-
-Clientes:
-
 - `GET /clients`
 - `POST /clients`
-- `GET /clients/{id}`
-- `PUT /clients/{id}`
-- `DELETE /clients/{id}`
-
-Proyectos:
-
 - `GET /projects`
 - `POST /projects`
-- `GET /projects/{id}`
-- `PUT /projects/{id}`
-- `DELETE /projects/{id}`
-
-Tareas:
-
 - `GET /tasks`
 - `POST /tasks`
-- `GET /tasks/{id}`
-- `PUT /tasks/{id}`
-- `DELETE /tasks/{id}`
 - `POST /tasks/{id}/complete`
-
-Reuniones:
-
 - `GET /meetings`
 - `POST /meetings`
-- `GET /meetings/{id}`
-- `PUT /meetings/{id}`
-- `DELETE /meetings/{id}`
-
-Finanzas:
-
 - `GET /finances`
 - `POST /finances`
 - `GET /finances/summary`
 - `GET /finances/pending`
-- `PUT /finances/{id}`
-- `DELETE /finances/{id}`
 - `POST /finances/{id}/mark-paid`
-
-Recordatorios:
-
 - `GET /reminders`
 - `POST /reminders`
-- `PUT /reminders/{id}`
-- `DELETE /reminders/{id}`
-
-Dashboard:
-
-- `GET /`
 
 ## Railway
 
-Los pasos completos estan en `DEPLOY_RAILWAY.md`.
+Railway puede correr `api`, `db` y `worker`. El bridge Baileys esta pensado para correr localmente en Windows/WSL o en un entorno donde puedas mantener la sesion QR persistente.
 
-Start commands documentados:
+Start command API:
 
 ```bash
-# API
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
-
-# Worker
-python -m app.worker
-
-# Resumen diario / Cron
-python -m app.daily_summary
 ```
 
-Antes del primer deploy o cuando cambien modelos, correr:
+Worker:
+
+```bash
+python -m app.worker
+```
+
+Migracion:
 
 ```bash
 alembic upgrade head
@@ -304,9 +250,7 @@ alembic upgrade head
 
 ## Proximos pasos
 
-- Agregar autenticacion para la API web.
-- Agregar filtros por cliente, proyecto, estado y fecha.
-- Mejorar NLP de comandos de Telegram con IA.
+- Implementar el Windows Bridge real para abrir/crear carpetas.
+- Agregar IA para interpretar mensajes naturales.
+- Agregar autenticacion para dashboard/API publica.
 - Agregar tests automatizados.
-- Agregar vistas HTML para crear y editar datos sin Swagger.
-- Agregar webhooks de Telegram si se prefiere evitar polling.

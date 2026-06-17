@@ -17,3 +17,7 @@ build/
 
 
 .vercel
+whatsapp_bridge/auth/*
+!whatsapp_bridge/auth/.gitkeep
+whatsapp_bridge/logs/*
+!whatsapp_bridge/logs/.gitkeep
