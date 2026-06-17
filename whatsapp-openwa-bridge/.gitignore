@@ -1,0 +1,9 @@
+node_modules/
+.env
+session.data.json
+*.data.json
+tokens/
+.sessions/
+.open-wa*
+npm-debug.log*
+

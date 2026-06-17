@@ -185,6 +185,25 @@ Comandos soportados por WhatsApp en esta primera version:
 - `pendientes`
 - `clientes`
 
+## Prueba local con WhatsApp QR/OpenWA
+
+Para probar rapido con QR sin Meta, el repo incluye un puente local en `whatsapp-openwa-bridge/`.
+
+```bash
+cd whatsapp-openwa-bridge
+copy .env.example .env
+npm install
+npm start
+```
+
+Antes de correrlo, levantar Hermes en local:
+
+```bash
+docker compose up --build
+```
+
+El puente usa `@open-wa/wa-automate@4.76.0`, recibe mensajes de WhatsApp Web y llama a la API REST de Hermes. Es solo para pruebas/local; para produccion conviene usar WhatsApp Cloud API oficial de Meta.
+
 ## Seed de ejemplo
 
 ```bash
