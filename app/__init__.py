@@ -1,0 +1,2 @@
+"""Hermes Secretario application package."""
+
