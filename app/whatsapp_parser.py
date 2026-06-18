@@ -84,6 +84,9 @@ def help_text() -> str:
             "clientes",
             "proyectos",
             "tarea hacer post para manana prioridad alta",
+            "completar tarea hacer post",
+            "cancelar tarea 12",
+            "prioridad tarea hacer post urgente",
             "cobro VAXA 120000 viernes web",
             "gasto Railway 5000 software",
             "reunion VAXA viernes 17 revisar web",
@@ -173,6 +176,61 @@ def create_task(db: Session, text: str) -> str:
         {"title": title or content, "priority": priority, "due_date": due_date, "status": "pendiente"},
     )
     return f"Tarea creada #{created.id}: {created.title}"
+
+
+def find_pending_task(db: Session, reference: str) -> tuple[models.Task | None, str | None]:
+    clean_reference = normalize_text(reference).strip().lstrip("#")
+    if not clean_reference:
+        return None, "Decime el numero o parte del nombre de la tarea."
+    if clean_reference.isdigit():
+        task = db.get(models.Task, int(clean_reference))
+        if task and task.status in {"pendiente", "en_progreso"}:
+            return task, None
+        return None, f"No encontre una tarea pendiente #{clean_reference}."
+
+    candidates = [
+        task
+        for task in crud.pending_tasks(db)
+        if clean_reference in normalize_text(task.title)
+    ]
+    if not candidates:
+        return None, f'No encontre una tarea pendiente que coincida con "{reference}".'
+    if len(candidates) > 1:
+        options = ", ".join(f"#{task.id} {task.title}" for task in candidates[:5])
+        return None, f"Encontre varias tareas: {options}. Indicame el numero."
+    return candidates[0], None
+
+
+def complete_task_command(db: Session, text: str) -> str:
+    reference = re.sub(r"^/?completar\s+tarea\s*", "", text, flags=re.IGNORECASE).strip()
+    task, error = find_pending_task(db, reference)
+    if not task:
+        return error or "No encontre la tarea."
+    crud.complete_task(db, task)
+    return f"Tarea completada #{task.id}: {task.title}"
+
+
+def cancel_task_command(db: Session, text: str) -> str:
+    reference = re.sub(r"^/?cancelar\s+tarea\s*", "", text, flags=re.IGNORECASE).strip()
+    task, error = find_pending_task(db, reference)
+    if not task:
+        return error or "No encontre la tarea."
+    crud.update(db, task, {"status": "cancelada"})
+    return f"Tarea cancelada #{task.id}: {task.title}"
+
+
+def change_task_priority(db: Session, text: str) -> str:
+    content = re.sub(r"^/?prioridad\s+tarea\s*", "", text, flags=re.IGNORECASE).strip()
+    match = re.search(r"\b(baja|media|alta|urgente)\b\s*$", normalize_text(content))
+    if not match:
+        return "Indica una prioridad: baja, media, alta o urgente."
+    priority = match.group(1)
+    reference = content[: match.start()].strip()
+    task, error = find_pending_task(db, reference)
+    if not task:
+        return error or "No encontre la tarea."
+    crud.update(db, task, {"priority": priority})
+    return f"Prioridad actualizada #{task.id}: {task.title} ({priority})"
 
 
 def create_charge(db: Session, text: str) -> str:
@@ -293,6 +351,12 @@ def process_known_command(db: Session, text: str) -> str | None:
         return build_projects(db)
     if clean.startswith("tarea "):
         return create_task(db, text)
+    if clean.startswith("completar tarea"):
+        return complete_task_command(db, text)
+    if clean.startswith("cancelar tarea"):
+        return cancel_task_command(db, text)
+    if clean.startswith("prioridad tarea"):
+        return change_task_priority(db, text)
     if clean.startswith("cobro "):
         return create_charge(db, text)
     if clean.startswith("gasto "):
@@ -312,14 +376,25 @@ def process_known_command(db: Session, text: str) -> str | None:
     return None
 
 
-def process_message(db: Session, text: str) -> str:
+def process_message(
+    db: Session,
+    text: str,
+    from_number: str | None = None,
+    current_message_db_id: int | None = None,
+) -> str:
     known_reply = process_known_command(db, text)
     if known_reply is not None:
         return known_reply
 
     from app.ai_assistant import interpret_with_ai
 
-    ai_reply = interpret_with_ai(db, text, lambda command: process_known_command(db, command) or help_text())
+    ai_reply = interpret_with_ai(
+        db,
+        text,
+        lambda command: process_known_command(db, command) or help_text(),
+        from_number,
+        current_message_db_id,
+    )
     if ai_reply:
         return ai_reply
     return "Comando no reconocido. Escribi ayuda para ver opciones."

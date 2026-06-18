@@ -27,8 +27,15 @@ class WhatsAppMessageOut(BaseModel):
     reply: str
 
 
-def log_message(db: Session, direction: str, from_number: str, text: str, message_id: str | None, status_value: str) -> None:
-    crud.create(
+def log_message(
+    db: Session,
+    direction: str,
+    from_number: str,
+    text: str,
+    message_id: str | None,
+    status_value: str,
+) -> models.WhatsAppMessage:
+    return crud.create(
         db,
         models.WhatsAppMessage,
         {
@@ -53,8 +60,7 @@ def receive_whatsapp_message(
         log_message(db, "incoming", payload.from_number, payload.text, payload.message_id, "unauthorized")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized WhatsApp number")
 
-    log_message(db, "incoming", payload.from_number, payload.text, payload.message_id, "received")
-    reply = process_message(db, payload.text)
+    incoming = log_message(db, "incoming", payload.from_number, payload.text, payload.message_id, "received")
+    reply = process_message(db, payload.text, payload.from_number, incoming.id)
     log_message(db, "outgoing", payload.from_number, reply, payload.message_id, "sent")
     return {"reply": reply}
-

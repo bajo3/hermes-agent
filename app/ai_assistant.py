@@ -6,7 +6,7 @@ import shlex
 import subprocess
 import urllib.error
 import urllib.request
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from typing import Callable
 
 from openai import OpenAI
@@ -25,6 +25,10 @@ SYSTEM_PROMPT = """
 Sos Hermes Secretario, un asistente operativo por WhatsApp para finanzas, clientes, proyectos, tareas y reuniones.
 Tu trabajo es convertir mensajes naturales en un comando interno de Hermes cuando sea posible.
 No inventes datos. Si falta un dato imprescindible, pedilo en una frase breve.
+Usa la conversacion reciente para completar respuestas cortas como "urgente", "si", "manana" o un monto.
+No vuelvas a pedir un dato que ya aparezca en la conversacion.
+Para tareas, la prioridad y la fecha son opcionales: usa prioridad media y sin fecha si no se indicaron.
+Si el usuario completa una aclaracion pendiente, devolve el comando completo con todos los datos reunidos.
 
 Comandos internos disponibles:
 - ayuda
@@ -39,6 +43,9 @@ Comandos internos disponibles:
 - abrir carpeta <cliente>
 - crear carpeta <cliente>
 - nota <cliente> <nota>
+- completar tarea <id o parte del titulo>
+- cancelar tarea <id o parte del titulo>
+- prioridad tarea <id o parte del titulo> <baja|media|alta|urgente>
 
 Devolve solo JSON valido con esta forma:
 {
@@ -95,12 +102,48 @@ def parse_ai_json(raw: str) -> dict[str, str | None]:
     }
 
 
-def build_prompt(db: Session, text: str) -> str:
+def conversation_history(
+    db: Session,
+    from_number: str | None,
+    current_message_db_id: int | None = None,
+) -> str:
+    if not from_number:
+        return "Sin historial reciente."
+
+    cutoff = datetime.now(UTC) - timedelta(minutes=settings.ai_history_minutes)
+    stmt = (
+        select(models.WhatsAppMessage)
+        .where(
+            models.WhatsAppMessage.from_number == from_number,
+            models.WhatsAppMessage.created_at >= cutoff,
+        )
+        .order_by(models.WhatsAppMessage.id.desc())
+        .limit(settings.ai_history_messages)
+    )
+    if current_message_db_id is not None:
+        stmt = stmt.where(models.WhatsAppMessage.id != current_message_db_id)
+    messages = list(reversed(db.scalars(stmt).all()))
+    if not messages:
+        return "Sin historial reciente."
+    return "\n".join(
+        f"{'Usuario' if message.direction == 'incoming' else 'Hermes'}: {message.text}"
+        for message in messages
+    )
+
+
+def build_prompt(
+    db: Session,
+    text: str,
+    from_number: str | None = None,
+    current_message_db_id: int | None = None,
+) -> str:
     return "\n\n".join(
         [
             SYSTEM_PROMPT.strip(),
             "Contexto actual de Hermes:",
             context_snapshot(db),
+            "Conversacion reciente (solo usala como contexto, no repitas acciones ya ejecutadas):",
+            conversation_history(db, from_number, current_message_db_id),
             "Mensaje recibido por WhatsApp:",
             text,
         ]
@@ -191,11 +234,17 @@ def apply_ai_decision(decision: dict[str, str | None], execute_command: Callable
     return "No entendi bien. Escribi ayuda para ver comandos o mandame la instruccion con un poco mas de detalle."
 
 
-def interpret_with_ai(db: Session, text: str, execute_command: Callable[[str], str]) -> str | None:
+def interpret_with_ai(
+    db: Session,
+    text: str,
+    execute_command: Callable[[str], str],
+    from_number: str | None = None,
+    current_message_db_id: int | None = None,
+) -> str | None:
     if not ai_available():
         return None
 
-    prompt = build_prompt(db, text)
+    prompt = build_prompt(db, text, from_number, current_message_db_id)
     try:
         decision = run_ai_interpretation(prompt)
     except Exception as exc:

@@ -69,6 +69,8 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5.4-mini
 AI_ENABLED=true
 AI_PROVIDER=openai
+AI_HISTORY_MESSAGES=12
+AI_HISTORY_MINUTES=30
 
 HERMES_CLI_PROVIDER=openai-codex
 HERMES_CLI_MODEL=gpt-5.5
@@ -146,6 +148,9 @@ pendientes
 clientes
 proyectos
 tarea hacer post de Romero para manana prioridad alta
+completar tarea hacer post
+cancelar tarea 12
+prioridad tarea hacer post urgente
 cobro VAXA 120000 viernes web
 gasto Railway 5000 software
 reunion VAXA viernes 17 revisar web
@@ -157,6 +162,7 @@ rechazar ...
 ```
 
 Si `AI_ENABLED=true`, Hermes tambien interpreta mensajes naturales. Los comandos exactos siempre se procesan primero.
+El historial reciente de cada numero se toma de PostgreSQL para resolver respuestas breves y aclaraciones. Por defecto conserva 12 mensajes dentro de una ventana de 30 minutos para el contexto de la IA.
 
 Hay dos proveedores soportados:
 

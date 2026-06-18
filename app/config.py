@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-5.4-mini", alias="OPENAI_MODEL")
     ai_enabled: bool = Field(default=True, alias="AI_ENABLED")
     ai_provider: str = Field(default="openai", alias="AI_PROVIDER")
+    ai_history_messages: int = Field(default=12, alias="AI_HISTORY_MESSAGES")
+    ai_history_minutes: int = Field(default=30, alias="AI_HISTORY_MINUTES")
     hermes_cli_path: str = Field(default="/home/bajo31/.local/bin/hermes", alias="HERMES_CLI_PATH")
     hermes_cli_command: Optional[str] = Field(default=None, alias="HERMES_CLI_COMMAND")
     hermes_cli_provider: str = Field(default="openai-codex", alias="HERMES_CLI_PROVIDER")
